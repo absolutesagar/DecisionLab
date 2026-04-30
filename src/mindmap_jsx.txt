@@ -1,0 +1,121 @@
+import { T, Logo } from "./App";
+import { BPALETTE } from "./ResultPage";
+
+function buildTree(data) {
+  const branches = data.branches || [];
+  const NW = 160, NH = 38, CW = 152, CH = 32, CX0 = 170, GAP_COL = 60, GAP_ROW = 12, CTR_W = 152, CTR_H = 52;
+
+  const branchH = branches.map(br => {
+    const k = (br.children || []).length;
+    return Math.max(NH, k * (CH + GAP_ROW) - GAP_ROW);
+  });
+  const totalH = branchH.reduce((s, h) => s + h + GAP_ROW, 0) - GAP_ROW;
+  const svgH = totalH + 48;
+  const bX = CX0 + CTR_W / 2 + GAP_COL;
+  const cX = bX + NW + GAP_COL;
+  const svgW = cX + CW + 16;
+  const ctrY = totalH / 2 + 24;
+
+  const elems = [];
+  elems.push({ type: "center", x: CX0, y: ctrY - CTR_H / 2, w: CTR_W, h: CTR_H, label: data.center || "Idea" });
+
+  let curY = 24;
+  branches.forEach((br, i) => {
+    const col = BPALETTE[i % BPALETTE.length];
+    const bH = branchH[i];
+    const bY = curY + bH / 2 - NH / 2;
+    elems.push({ type: "line", x1: CX0 + CTR_W, y1: ctrY, x2: bX, y2: bY + NH / 2, col });
+    elems.push({ type: "branch", x: bX, y: bY, w: NW, h: NH, label: br.label, col });
+    let kY = curY;
+    (br.children || []).forEach((ch) => {
+      const midK = kY + CH / 2;
+      elems.push({ type: "line", x1: bX + NW, y1: bY + NH / 2, x2: cX, y2: midK + CH / 2, col });
+      elems.push({ type: "child", x: cX, y: midK, w: CW, h: CH, label: ch, col });
+      kY += CH + GAP_ROW;
+    });
+    curY += bH + GAP_ROW;
+  });
+  return { elems, svgW, svgH };
+}
+
+function TreeSVG({ data }) {
+  const { elems, svgW, svgH } = buildTree(data);
+  return (
+    <svg width="100%" viewBox={`0 0 ${svgW} ${svgH}`} style={{ display: "block" }}>
+      {elems.map((el, i) => {
+        if (el.type === "line") {
+          const mx = (el.x1 + el.x2) / 2;
+          return <path key={i} d={`M${el.x1},${el.y1} C${mx},${el.y1} ${mx},${el.y2} ${el.x2},${el.y2}`}
+            fill="none" stroke={el.col.stroke} strokeWidth="1.5" strokeOpacity="0.3" />;
+        }
+        if (el.type === "center") return (
+          <g key={i}>
+            <rect x={el.x} y={el.y} width={el.w} height={el.h} rx="12" fill={T.oliveXL} stroke={T.olive} strokeWidth="2" />
+            <text x={el.x + el.w / 2} y={el.y + el.h / 2 - 6} textAnchor="middle" fontSize="11.5" fontWeight="700" fill={T.olive}>{el.label.slice(0, 20)}</text>
+            <text x={el.x + el.w / 2} y={el.y + el.h / 2 + 10} textAnchor="middle" fontSize="9" fill={T.oliveL}>core concept</text>
+          </g>
+        );
+        if (el.type === "branch") {
+          const words = el.label.split(" ");
+          const line1 = words.slice(0, Math.ceil(words.length / 2)).join(" ");
+          const line2 = words.slice(Math.ceil(words.length / 2)).join(" ");
+          const twoLine = el.label.length > 14 && words.length > 1;
+          return (
+            <g key={i}>
+              <rect x={el.x} y={el.y} width={el.w} height={el.h} rx="9" fill={el.col.bg} stroke={el.col.border} strokeWidth="1.5" />
+              {twoLine ? <>
+                <text x={el.x + el.w / 2} y={el.y + el.h / 2 - 3} textAnchor="middle" fontSize="10.5" fontWeight="600" fill={el.col.text}>{line1}</text>
+                <text x={el.x + el.w / 2} y={el.y + el.h / 2 + 11} textAnchor="middle" fontSize="10.5" fontWeight="600" fill={el.col.text}>{line2}</text>
+              </> :
+                <text x={el.x + el.w / 2} y={el.y + el.h / 2 + 5} textAnchor="middle" fontSize="10.5" fontWeight="600" fill={el.col.text}>{el.label}</text>
+              }
+            </g>
+          );
+        }
+        if (el.type === "child") {
+          const words = el.label.split(" ");
+          const twoLine = el.label.length > 17 && words.length > 2;
+          const l1 = words.slice(0, Math.ceil(words.length / 2)).join(" ");
+          const l2 = words.slice(Math.ceil(words.length / 2)).join(" ");
+          const nodeH = twoLine ? el.h + 10 : el.h;
+          return (
+            <g key={i}>
+              <rect x={el.x} y={el.y - (twoLine ? 5 : 0)} width={el.w} height={nodeH} rx="7" fill={T.card} stroke={el.col.border} strokeWidth="1" strokeOpacity="0.65" />
+              {twoLine ? <>
+                <text x={el.x + el.w / 2} y={el.y + 9} textAnchor="middle" fontSize="9.5" fill={el.col.text}>{l1}</text>
+                <text x={el.x + el.w / 2} y={el.y + 22} textAnchor="middle" fontSize="9.5" fill={el.col.text}>{l2}</text>
+              </> :
+                <text x={el.x + el.w / 2} y={el.y + el.h / 2 + 4} textAnchor="middle" fontSize="10" fill={el.col.text}>{el.label}</text>
+              }
+            </g>
+          );
+        }
+        return null;
+      })}
+    </svg>
+  );
+}
+
+function MindMapFull({ data, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: T.bg, zIndex: 1000, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px", borderBottom: `1px solid ${T.border}`, background: T.card, boxShadow: T.sh }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><Logo /><span style={{ fontSize: "15px", fontWeight: "500", color: T.charcoal }}>DecisionLab</span></div>
+        <button onClick={onClose} style={{ fontSize: "13px", padding: "7px 20px", background: T.olive, color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" }}>Close</button>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: "32px 40px" }}><TreeSVG data={data} /></div>
+    </div>
+  );
+}
+
+export default function MindMapInline({ data, onFullscreen, mmFull, onClose }) {
+  return (
+    <div style={{ width: "100%", position: "relative", background: T.bg, borderRadius: "12px", padding: "16px 16px 16px 8px", boxSizing: "border-box" }}>
+      <TreeSVG data={data} />
+      <button onClick={onFullscreen} style={{ position: "absolute", top: "12px", right: "12px", fontSize: "11px", padding: "5px 13px", background: T.card, color: T.olive, border: `1px solid ${T.oliveMuted}`, borderRadius: "7px", cursor: "pointer", fontWeight: "500", boxShadow: T.sh }}>
+        View fullscreen
+      </button>
+      {mmFull && <MindMapFull data={data} onClose={onClose} />}
+    </div>
+  );
+}

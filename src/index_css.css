@@ -1,0 +1,35 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: 'Fira Code', monospace;
+  --color-background-primary: #FFFDF7;
+  --color-background-secondary: #F5F1E8;
+  --color-text-primary: #2E2E2E;
+  --color-text-secondary: #6B6B6B;
+  --color-border-tertiary: rgba(74,93,58,0.15);
+  --color-border-secondary: rgba(74,93,58,0.3);
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #F5F1E8;
+  color: #2E2E2E;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+textarea, input {
+  font-family: var(--font-sans);
+}

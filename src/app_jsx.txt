@@ -1,0 +1,158 @@
+import { useState } from "react";
+import ResultPage from "./ResultPage";
+
+const T = {
+  bg: "#F5F1E8", card: "#FFFDF7", olive: "#4A5D3A", oliveL: "#6B7F5A",
+  oliveMuted: "#C8D4BC", oliveXL: "#EEF2EA", charcoal: "#2E2E2E",
+  muted: "#6B6B6B", border: "#E2DDD4",
+  sh: "0 1px 4px rgba(74,93,58,0.08)",
+  shMd: "0 4px 20px rgba(74,93,58,0.12)",
+  shLg: "0 8px 32px rgba(74,93,58,0.14)",
+};
+
+export { T };
+
+const SYSTEM_PROMPT = `You are a senior product manager. Break down a raw product idea into structured product thinking.
+
+Return ONLY valid JSON, no markdown, no backticks, no extra text. Replace all em dashes and long hyphens used as dashes with a comma or period.
+
+{
+  "summary": {
+    "problem": "2-3 sentence problem statement with context and stakes.",
+    "targetUsers": "Specific user segments, not generic labels.",
+    "coreInsight": "The non-obvious insight that makes this worth building.",
+    "suggestedMVP": "The single most important thing to validate first and why."
+  },
+  "breakdown": {
+    "problem": "Full problem analysis, context, root cause, why now, why it matters.",
+    "users": [{ "segment": "Segment name", "description": "Who they are and what frustrates them." }],
+    "useCases": [{ "title": "Use case", "description": "Specific scenario where this product helps." }]
+  },
+  "mindMap": {
+    "center": "Core idea (2-4 words)",
+    "branches": [
+      { "label": "Branch name (2-4 words)", "children": ["child 1", "child 2", "child 3"] }
+    ]
+  },
+  "features": [{ "name": "Feature name", "description": "What it does and why it matters.", "group": "Core / Discovery / Engagement / Monetization / Trust" }],
+  "prioritization": {
+    "mustHave": [{ "feature": "name", "reason": "Why non-negotiable for MVP." }],
+    "goodToHave": [{ "feature": "name", "reason": "Why valuable but not blocking." }],
+    "later": [{ "feature": "name", "reason": "Why to defer this." }],
+    "mvpPlan": "3-4 sentence focused MVP execution plan.",
+    "keyInsights": ["Non-obvious observation about this product space.", "A trade-off or strategic risk worth knowing."]
+  }
+}`;
+
+export { SYSTEM_PROMPT };
+
+function Logo() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+      <rect width="30" height="30" rx="8" fill={T.olive} />
+      <rect x="7" y="7" width="7" height="7" rx="2" fill="white" opacity="0.95" />
+      <rect x="16" y="7" width="7" height="7" rx="2" fill="white" opacity="0.5" />
+      <rect x="7" y="16" width="7" height="7" rx="2" fill="white" opacity="0.5" />
+      <rect x="16" y="16" width="7" height="7" rx="2" fill="white" opacity="0.95" />
+    </svg>
+  );
+}
+
+export { Logo };
+
+export default function App() {
+  const [idea, setIdea] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  const generate = async () => {
+    if (!idea.trim()) return;
+    setLoading(true); setResult(null); setError("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8000,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: "user", content: `Product idea to break down:\n\n${idea}` }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) { setError(`API error: ${data.error.message}`); setLoading(false); return; }
+      const raw = data.content?.find(b => b.type === "text")?.text || "";
+      if (!raw) { setError("No response from AI. Please try again."); setLoading(false); return; }
+      const clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+      try { setResult(JSON.parse(clean)); }
+      catch { setError(`Could not parse AI response. Raw output: ${raw.slice(0, 200)}`); }
+    } catch (e) { setError(`Network error: ${e.message}`); }
+    setLoading(false);
+  };
+
+  if (result) return <ResultPage result={result} idea={idea} onBack={() => { setResult(null); setError(""); }} />;
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+      <style>{`
+        .gen { background: ${T.olive}; color: #fff; border: none; border-radius: 10px; padding: 12px 32px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.12s, box-shadow 0.15s; font-family: Inter, sans-serif; box-shadow: 0 2px 8px rgba(74,93,58,0.25); letter-spacing: 0.01em; }
+        .gen:hover:not(:disabled) { background: ${T.oliveL}; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(74,93,58,0.3); }
+        .gen:active:not(:disabled) { transform: scale(0.97); }
+        .gen:disabled { opacity: 0.45; cursor: not-allowed; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        textarea { background: ${T.card}; border: 1.5px solid ${T.border}; border-radius: 12px; color: ${T.charcoal}; font-family: Inter, sans-serif; outline: none; width: 100%; box-sizing: border-box; padding: 14px 16px; font-size: 14px; line-height: 1.7; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; }
+        textarea:focus { border-color: ${T.olive}; box-shadow: 0 0 0 3px ${T.oliveXL}; }
+        textarea::placeholder { color: #b5ad9f; }
+        .feat-pill { display: inline-flex; align-items: center; gap: 6px; background: ${T.card}; border: 1px solid ${T.border}; border-radius: 20px; padding: 5px 14px; font-size: 12px; color: ${T.muted}; }
+      `}</style>
+
+      <div style={{ borderBottom: `1px solid ${T.border}`, background: T.card, padding: "0 28px", boxShadow: T.sh }}>
+        <div style={{ maxWidth: "680px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: "58px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Logo />
+            <span style={{ fontSize: "15px", fontWeight: "600", color: T.charcoal }}>DecisionLab</span>
+          </div>
+          <span style={{ fontSize: "11px", color: T.oliveL, background: T.oliveXL, padding: "3px 12px", borderRadius: "20px", border: `1px solid ${T.oliveMuted}`, fontWeight: "500" }}>Beta</span>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: "580px", margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ textAlign: "center", padding: "4.5rem 0 2.5rem" }}>
+          <div style={{ display: "inline-block", background: T.oliveXL, color: T.olive, fontSize: "11px", fontWeight: "600", padding: "4px 16px", borderRadius: "20px", marginBottom: "22px", letterSpacing: "0.06em", border: `1px solid ${T.oliveMuted}` }}>PM THINKING TOOL</div>
+          <h1 style={{ fontSize: "32px", fontWeight: "700", color: T.charcoal, margin: "0 0 14px", lineHeight: "1.28", letterSpacing: "-0.01em" }}>Turn ideas into structured<br />product decisions</h1>
+          <p style={{ fontSize: "15px", color: T.muted, margin: "0 0 2rem", lineHeight: "1.7" }}>Paste a raw idea or feature concept.<br />Get a full PM breakdown in seconds.</p>
+          <div style={{ display: "flex", justifyContent: "center", gap: "8px", flexWrap: "wrap" }}>
+            {["Mind map", "Feature list", "MVP plan", "User segments"].map(f => (
+              <span key={f} className="feat-pill">{f}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "18px", padding: "1.6rem", boxShadow: T.shLg }}>
+          <p style={{ fontSize: "12px", color: T.muted, marginBottom: "10px", fontWeight: "500" }}>Describe your idea or feature</p>
+          <textarea
+            rows={5}
+            value={idea}
+            onChange={e => setIdea(e.target.value)}
+            placeholder="e.g. A map app for group riders where each person can see everyone's live location, follow a shared route, and get alerts if someone falls behind..."
+          />
+          {error && (
+            <p style={{ fontSize: "12px", color: "#b03020", marginTop: "10px", lineHeight: "1.6", background: "#FEF0EE", padding: "8px 12px", borderRadius: "8px" }}>{error}</p>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
+            <button className="gen" onClick={generate} disabled={loading || !idea.trim()}>
+              {loading
+                ? <span style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                    <span style={{ width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                    Structuring idea...
+                  </span>
+                : "Structure this idea →"}
+            </button>
+          </div>
+        </div>
+        <p style={{ textAlign: "center", fontSize: "11.5px", color: T.muted, marginTop: "1.5rem", opacity: 0.75 }}>Built for PMs, founders, and early-stage builders</p>
+      </div>
+    </div>
+  );
+}
