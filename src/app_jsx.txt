@@ -70,19 +70,25 @@ export default function App() {
     if (!idea.trim()) return;
     setLoading(true); setResult(null); setError("");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+          "HTTP-Referer": window.location.origin,
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "anthropic/claude-sonnet-4-5",
           max_tokens: 8000,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: "user", content: `Product idea to break down:\n\n${idea}` }]
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `Product idea to break down:\n\n${idea}` }
+          ]
         })
       });
       const data = await res.json();
       if (data.error) { setError(`API error: ${data.error.message}`); setLoading(false); return; }
-      const raw = data.content?.find(b => b.type === "text")?.text || "";
+      const raw = data.choices?.[0]?.message?.content || "";
       if (!raw) { setError("No response from AI. Please try again."); setLoading(false); return; }
       const clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
       try { setResult(JSON.parse(clean)); }
